@@ -22,6 +22,7 @@ public abstract class AbstractDistributedLock implements DistributedLock {
     /**
      * 枷锁，会阻塞
      */
+    @Override
     public abstract void lock();
 
     /**
@@ -29,6 +30,7 @@ public abstract class AbstractDistributedLock implements DistributedLock {
      *
      * @return 枷锁成功与否
      */
+    @Override
     public abstract boolean tryLock();
 
     /**
@@ -37,6 +39,7 @@ public abstract class AbstractDistributedLock implements DistributedLock {
      * @param timeout 超时时间,毫秒
      * @return 枷锁成功与否
      */
+    @Override
     public abstract boolean tryLock(long timeout);
 
     /**
@@ -44,5 +47,6 @@ public abstract class AbstractDistributedLock implements DistributedLock {
      *
      * @return 释放成功与否
      */
+    @Override
     public abstract boolean unlock();
 }
