@@ -1,5 +1,7 @@
 package com.hjj.distributedlock.core;
 
+import org.apache.zookeeper.KeeperException;
+
 /**
  * @author junguo
  * @date 2021-03-15
@@ -9,7 +11,7 @@ public abstract class AbstractDistributedLock implements DistributedLock {
     /**
      * 锁名称前缀，默认"lock"，初始化时根据实际业务修改
      */
-    protected String LOCK_PREFIX = "lock";
+    protected String lockName = "lock";
     /**
      * 锁状态，0未被枷锁，大于0表示加锁了n次
      */
@@ -21,9 +23,11 @@ public abstract class AbstractDistributedLock implements DistributedLock {
 
     /**
      * 枷锁，会阻塞
+     *
+     * @throws InterruptedException, KeeperException
      */
     @Override
-    public abstract void lock();
+    public abstract void lock() throws InterruptedException, KeeperException;
 
     /**
      * 尝试枷锁，非阻塞
@@ -44,9 +48,7 @@ public abstract class AbstractDistributedLock implements DistributedLock {
 
     /**
      * 释放锁
-     *
-     * @return 释放成功与否
      */
     @Override
-    public abstract boolean unlock();
+    public abstract void unlock() throws KeeperException, InterruptedException;
 }

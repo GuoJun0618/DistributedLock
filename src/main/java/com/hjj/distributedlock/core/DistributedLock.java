@@ -1,5 +1,7 @@
 package com.hjj.distributedlock.core;
 
+import org.apache.zookeeper.KeeperException;
+
 /**
  * @author junguo
  * @date 2021-03-15
@@ -8,9 +10,9 @@ package com.hjj.distributedlock.core;
 public interface DistributedLock {
 
     /**
-     * 枷锁，会阻塞
+     * 枷锁，阻塞
      */
-    void lock();
+    void lock() throws InterruptedException, KeeperException;
 
     /**
      * 尝试枷锁，非阻塞
@@ -30,7 +32,6 @@ public interface DistributedLock {
     /**
      * 释放锁
      *
-     * @return 释放成功与否
      */
-    boolean unlock();
+    void unlock() throws KeeperException, InterruptedException;
 }
