@@ -1,10 +1,7 @@
 package com.hjj.distributedlock.lock;
 
 import com.hjj.distributedlock.core.AbstractDistributedLock;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +16,7 @@ import java.util.stream.Collectors;
 public class ZkLock extends AbstractDistributedLock {
     private ZooKeeper zooKeeper;
     private static final Logger LOG = LoggerFactory.getLogger(ZkLock.class);
-    private static final String LOCK_PATH = "/easyLock";
+    private static final String LOCK_ROOT = "/easyLock";
     private String curLockPath;
     private volatile boolean getLock = false;
 
@@ -45,26 +42,34 @@ public class ZkLock extends AbstractDistributedLock {
         try {
             zooKeeper = new ZooKeeper(zkUrl, 5000, watchedEvent -> {
                 try {
-                    List<String> children = zooKeeper.getChildren(LOCK_PATH + "/" + lockName, true);
-                    LOG.info("监听----" + children.toString() + "---" + curLockPath);
-                    validNode(children);
+                    if (zooKeeper.getState().isAlive() &&
+                            watchedEvent.getType() == Watcher.Event.EventType.NodeChildrenChanged) {
+                        findMinNode();
+                    }
                 } catch (KeeperException | InterruptedException e) {
                     LOG.error("zookeeper监听出错", e);
                 }
             });
-            while (!zooKeeper.getState().isConnected()) {
-                LOG.info("连接中...");
-            }
-            Stat exists = zooKeeper.exists(LOCK_PATH, false);
-            if (exists == null) {
-                zooKeeper.create(LOCK_PATH, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                zooKeeper.create(LOCK_PATH + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            }
-
+            initNode();
         } catch (IOException e) {
             LOG.error("zookeeper初始化出錯", e);
-        } catch (InterruptedException | KeeperException e) {
-            e.printStackTrace();
+        }
+    }
+
+    private void initNode() {
+        try {
+            Stat existsRoot = zooKeeper.exists(LOCK_ROOT, false);
+            if (existsRoot == null) {
+                zooKeeper.create(LOCK_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+            Stat existsCur = zooKeeper.exists(LOCK_ROOT + "/" + lockName, false);
+            if (existsCur == null) {
+                zooKeeper.create(LOCK_ROOT + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+        } catch (KeeperException.NodeExistsException e1) {
+            LOG.info("initNode-已经创建过该节点");
+        } catch (KeeperException | InterruptedException e) {
+            LOG.error("initNode-error", e);
         }
     }
 
@@ -74,27 +79,28 @@ public class ZkLock extends AbstractDistributedLock {
 
     @Override
     public void lock() throws KeeperException, InterruptedException {
-        if (curLockPath == null || curLockPath.length() == 0) {
-            curLockPath = zooKeeper.create(LOCK_PATH + "/" + lockName + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+        if (getLock && curThread != Thread.currentThread()) {
+            return;
         }
+        curLockPath = zooKeeper.create(LOCK_ROOT + "/" + lockName + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+        findMinNode();
         for (; ; ) {
             if (getLock) {
-                LOG.info("拿到锁{}", curLockPath);
+                LOG.debug("拿到锁{}", curLockPath);
                 break;
             }
         }
     }
 
-    private void validNode(List<String> children) {
-        if (curLockPath == null || curLockPath.length() == 0) {
-            return;
-        }
+    private void findMinNode() throws KeeperException, InterruptedException {
+        List<String> children = zooKeeper.getChildren(LOCK_ROOT + "/" + lockName, true);
         List<String> list = children.stream().sorted().collect(Collectors.toList());
         if (list.size() == 0) {
             return;
         }
-        if (curLockPath.endsWith(list.get(0))) {
+        if (curLockPath != null && curLockPath.endsWith(list.get(0))) {
             getLock = true;
+            curThread = Thread.currentThread();
         }
     }
 
@@ -111,7 +117,7 @@ public class ZkLock extends AbstractDistributedLock {
     @Override
     public void unlock() throws KeeperException, InterruptedException {
         zooKeeper.delete(curLockPath, -1);
-        LOG.info("删除锁{}", curLockPath);
+        LOG.debug("删除锁{}", curLockPath);
         curLockPath = null;
         getLock = false;
         zooKeeper.close();
