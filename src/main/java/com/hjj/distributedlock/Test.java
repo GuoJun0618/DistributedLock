@@ -14,7 +14,7 @@ import java.io.IOException;
 public class Test {
 
     /**
-     * 再D盘新建一个内容为0的文件代替数据库做测试
+     * 在D盘新建一个内容为0的文件代替数据库做测试
      */
     private final static String FILE_PATH = "d:\\1.txt";
     private final static String ZK_URL = "192.168.247.130:2181";
