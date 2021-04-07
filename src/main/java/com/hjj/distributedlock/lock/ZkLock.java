@@ -79,7 +79,7 @@ public class ZkLock extends AbstractDistributedLock {
 
     @Override
     public void lock() throws KeeperException, InterruptedException {
-        if (getLock && curThread != Thread.currentThread()) {
+        if (getLock && curThread == Thread.currentThread()) {
             return;
         }
         curLockPath = zooKeeper.create(LOCK_ROOT + "/" + lockName + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
@@ -106,6 +106,9 @@ public class ZkLock extends AbstractDistributedLock {
 
     @Override
     public boolean tryLock() {
+        if (getLock && curThread != Thread.currentThread()) {
+            return true;
+        }
         return false;
     }
 
