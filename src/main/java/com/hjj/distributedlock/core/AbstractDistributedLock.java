@@ -24,7 +24,8 @@ public abstract class AbstractDistributedLock implements DistributedLock {
     /**
      * 枷锁，会阻塞
      *
-     * @throws InterruptedException, KeeperException
+     * @throws InterruptedException 中断异常
+     * @throws KeeperException      ZK异常
      */
     @Override
     public abstract void lock() throws InterruptedException, KeeperException;
@@ -33,21 +34,28 @@ public abstract class AbstractDistributedLock implements DistributedLock {
      * 尝试枷锁，非阻塞
      *
      * @return 枷锁成功与否
+     * @throws InterruptedException 中断异常
+     * @throws KeeperException      ZK异常
      */
     @Override
-    public abstract boolean tryLock();
+    public abstract boolean tryLock() throws KeeperException, InterruptedException;
 
     /**
      * 尝试一定时间段内枷锁，超时返回
      *
      * @param timeout 超时时间,毫秒
      * @return 枷锁成功与否
+     * @throws InterruptedException 中断异常
+     * @throws KeeperException      ZK异常
      */
     @Override
-    public abstract boolean tryLock(long timeout);
+    public abstract boolean tryLock(long timeout) throws KeeperException, InterruptedException;
 
     /**
      * 释放锁
+     *
+     * @throws InterruptedException 中断异常
+     * @throws KeeperException      ZK异常
      */
     @Override
     public abstract void unlock() throws KeeperException, InterruptedException;

@@ -21,11 +21,41 @@ public class Test {
 
     public static void main(String[] args) {
         Test test = new Test();
-        test.test();
+        //test.test();
+        //test.testTry();
+        test.testTryTime();
+    }
+
+    private void testTryTime() {
+        ZkLock zkLock = ZkLock.create("demo", ZK_URL);
+        try {
+            if (zkLock.tryLock(50)) {
+                addFile();
+                zkLock.unlock();
+            }
+        } catch (KeeperException | InterruptedException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void testTry() {
+        ZkLock zkLock = ZkLock.create("demo", ZK_URL);
+        try {
+            if (zkLock.tryLock()) {
+                addFile();
+            }
+        } catch (KeeperException | InterruptedException | IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                zkLock.unlock();
+            } catch (KeeperException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void test() {
-
         Thread thread1 = new Thread(() -> {
             try {
                 for (int i = 0; i < 100; i++) {

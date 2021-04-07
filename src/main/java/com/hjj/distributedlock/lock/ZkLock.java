@@ -82,7 +82,7 @@ public class ZkLock extends AbstractDistributedLock {
         if (getLock && curThread == Thread.currentThread()) {
             return;
         }
-        curLockPath = zooKeeper.create(LOCK_ROOT + "/" + lockName + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+        createLockNode();
         findMinNode();
         for (; ; ) {
             if (getLock) {
@@ -105,16 +105,34 @@ public class ZkLock extends AbstractDistributedLock {
     }
 
     @Override
-    public boolean tryLock() {
+    public boolean tryLock() throws KeeperException, InterruptedException {
         if (getLock && curThread != Thread.currentThread()) {
             return true;
         }
-        return false;
+        createLockNode();
+        findMinNode();
+        return getLock;
     }
 
     @Override
-    public boolean tryLock(long timeout) {
-        return false;
+    public boolean tryLock(long timeout) throws KeeperException, InterruptedException {
+        long begin = System.currentTimeMillis();
+        if (getLock && curThread == Thread.currentThread()) {
+            return true;
+        }
+        createLockNode();
+        findMinNode();
+        for (; ; ) {
+            if (System.currentTimeMillis() - begin > timeout) {
+                zooKeeper.delete(curLockPath, -1);
+                zooKeeper.close();
+                return false;
+            }
+            if (getLock) {
+                LOG.debug("拿到锁{}", curLockPath);
+                return true;
+            }
+        }
     }
 
     @Override
@@ -124,6 +142,10 @@ public class ZkLock extends AbstractDistributedLock {
         curLockPath = null;
         getLock = false;
         zooKeeper.close();
+    }
+
+    private void createLockNode() throws KeeperException, InterruptedException {
+        curLockPath = zooKeeper.create(LOCK_ROOT + "/" + lockName + "/" + lockName, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
     }
 
     @Override
